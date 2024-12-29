@@ -1,0 +1,8 @@
+.gradle/
+.idea/
+.vscode/
+.zig-cache/
+zig-out/
+build/
+run/
+.DS_Store

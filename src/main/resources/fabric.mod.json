@@ -1,0 +1,24 @@
+{
+	"schemaVersion": 1,
+	"id": "tracy-utils",
+	"version": "${version}",
+	"name": "Tracy Utils",
+	"description": "Adds support for tracy on more platforms",
+	"authors": [
+		"modmuss"
+	],
+	"environment": "*",
+	"entrypoints": {
+		"client": [
+			"me.modmuss50.tracyutils.client.TracyUtilsClient"
+		]
+	},
+	"mixins": [
+		"tracy.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.16.9",
+		"minecraft": "~1.21.4",
+		"java": ">=21"
+	}
+}

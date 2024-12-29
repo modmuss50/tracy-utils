@@ -1,0 +1,16 @@
+{
+	"required": true,
+	"package": "me.modmuss50.tracyutils.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"mixins": [
+		"LoaderMixin",
+		"TracyClientAccessor",
+		"TracyClientMixin"
+	],
+	"client": [
+		"client.MinecraftClientAccessor"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

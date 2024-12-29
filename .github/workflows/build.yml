@@ -1,0 +1,23 @@
+name: build
+on: [pull_request, push]
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v4
+      - name: validate gradle wrapper
+        uses: gradle/wrapper-validation-action@v2
+      - name: setup
+        run: |
+          brew install zig
+          chmod +x ./gradlew
+          ln -s /Applications/Xcode.app//Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libSystem.B.tbd /opt/homebrew/Cellar/zig/0.13.0/lib/zig/libc/darwin/libSystem.tbd
+      - name: build
+        run: ./gradlew build
+      - name: Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Artifacts
+          path: build/libs/

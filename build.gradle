@@ -1,0 +1,202 @@
+plugins {
+    id "de.undercouch.download" version "5.5.0"
+    id 'fabric-loom' version '1.9-SNAPSHOT'
+    id "me.modmuss50.mod-publish-plugin" version "0.8.3"
+}
+
+version = "0.0.1"
+
+base {
+    archivesName = "tracy-utils"
+}
+
+def tracyVersion = "0.11.1"
+def capstoneVersion = "5.0.3"
+def glfwVersion = "3.4"
+
+tasks.register("downloadTracy", Download) {
+    src "https://github.com/wolfpld/tracy/archive/refs/tags/v${tracyVersion}.zip"
+    dest layout.buildDirectory
+    overwrite false
+}
+
+tasks.register("extractTracy", Sync) {
+    dependsOn tasks.downloadTracy
+    from zipTree(tasks.downloadTracy.getOutputs().files.singleFile)
+    into layout.buildDirectory.dir("tracy")
+
+    doLast {
+        def outputDir = file("build/tracy/tracy-${tracyVersion}")
+
+        // Misc linux fix
+        def TracyFastVector = new File(outputDir, "public/client/TracyFastVector.hpp")
+        TracyFastVector.text = TracyFastVector.text.replace("#include <stddef.h>", "#include <cstddef>\n#include <string.h>")
+
+        // Fix for GNU Windows
+        def TracyPopcnt = new File(outputDir, "server/TracyPopcnt.hpp")
+        TracyPopcnt.text = TracyPopcnt.text.replace("#if defined _WIN64", "#if defined _MSC_VER")
+
+        // RISC-V support
+        def tracy_rpmalloc = new File(outputDir, "public/client/tracy_rpmalloc.cpp")
+        tracy_rpmalloc.text = tracy_rpmalloc.text.replace("__asm__ volatile(\"or 27,27,27\");", "__asm__ volatile(\"or 27,27,27\");\n#elif defined(__riscv)\n    __asm__ volatile(\"fence\" ::: \"memory\");")
+
+        // MUSL linux fix
+        def TracyFileRead = new File(outputDir, "server/TracyFileRead.hpp")
+        TracyFileRead.text = TracyFileRead.text.replace("defined __FreeBSD__", "defined __FreeBSD__ || defined __linux__")
+    }
+}
+
+tasks.register("downloadCapstone", Download) {
+    src "https://github.com/capstone-engine/capstone/archive/refs/tags/${capstoneVersion}.zip"
+    dest layout.buildDirectory
+    overwrite false
+}
+
+tasks.register("extractCapstone", Sync) {
+    dependsOn tasks.downloadCapstone
+    from zipTree(tasks.downloadCapstone.getOutputs().files.singleFile)
+    into layout.buildDirectory.dir("capstone")
+}
+
+tasks.register("downloadGLFW", Download) {
+    src "https://github.com/glfw/glfw/archive/refs/tags/${glfwVersion}.zip"
+    dest layout.buildDirectory
+    overwrite false
+}
+
+tasks.register("extractGLFW", Sync) {
+    dependsOn tasks.downloadGLFW
+    from zipTree(tasks.downloadGLFW.getOutputs().files.singleFile)
+    into layout.buildDirectory.dir("glfw")
+}
+
+def targets = [
+    // Linux
+    "aarch64-linux-musl",
+    "x86_64-linux-musl",
+    "riscv64-linux-musl",
+    // Windows
+    "x86_64-windows-gnu",
+    "aarch64-windows-gnu",
+    "x86-windows-gnu",
+    // MacOS
+    "x86_64-macos",
+    "aarch64-macos"
+]
+
+def buildAll = tasks.register("buildAll")
+
+targets.forEach { target ->
+    def outputDir = "build/lib/release/${target}"
+    def buildTask = tasks.register("buildRelease${target.capitalize()}", Exec) {
+        dependsOn "extractTracy"
+        dependsOn "extractCapstone"
+        dependsOn "extractGLFW"
+        inputs.dir "src"
+        inputs.file "build.zig"
+        inputs.files tasks.extractTracy.getOutputs().files
+
+        outputs.dir outputDir
+
+        workingDir projectDir
+        def buildTarget = target == "aarch64-macos" ? "native" : target
+        commandLine "/opt/homebrew/bin/zig", "build", "-Doptimize=ReleaseSmall", "-Dtarget=${buildTarget}", "--prefix", outputDir
+    }
+    buildAll.configure {
+        dependsOn buildTask
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:1.21.4"
+    mappings "net.fabricmc:yarn:1.21.4+build.1:v2"
+    modImplementation "net.fabricmc:fabric-loader:0.16.9"
+
+    Set<String> apiModules = [
+        "fabric-api-base",
+        "fabric-command-api-v2"
+    ]
+
+    apiModules.forEach {
+        include(modImplementation(fabricApi.module(it, "0.113.0+1.21.4")))
+    }
+}
+
+loom {
+    mixin {
+        useLegacyMixinAp = false
+    }
+}
+
+processResources {
+    inputs.property "version", project.version
+
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+}
+
+def collectNatives = tasks.register("collectNatives", Sync) {
+    targets.forEach { target ->
+        def buildTask = tasks.getByName("buildRelease${target.capitalize()}")
+        dependsOn buildTask
+        from(fileTree(buildTask.outputs.files.singleFile).matching {
+            include "**/*.dll"
+            include "**/*.so"
+            include "**/*.dylib"
+            include "**/capture"
+            include "**/capture.exe"
+            include "**/profiler"
+            include "**/profiler.exe"
+        }) {
+            into "natives/${target}"
+            def arch = target.split("-")[0]
+            def os = target.split("-")[1]
+            filesMatching("**") {
+                if (name.contains("capture")) {
+                    def ext = os == 'windows' ? '.exe' : ''
+                    path = "tracyutils/${os}-${arch}-tracy-capture${ext}"
+                } else if (name.contains("profiler")) {
+                    def ext = os == 'windows' ? '.exe' : ''
+                    path = "tracyutils/${os}-${arch}-tracy-profiler${ext}"
+                } else {
+                    def ext = it.name.split("\\.")[1]
+                    path = "tracyutils/${os}-${arch}-jtracy.${ext}"
+                }
+            }
+        }
+    }
+    from file("Tracy_LICENSE")
+
+    includeEmptyDirs = false
+    outputs.upToDateWhen { false }
+
+    into layout.buildDirectory.dir("natives")
+}
+
+sourceSets.main.resources.srcDir collectNatives
+
+publishMods {
+    file = remapJar.archiveFile
+    additionalFiles.from fileTree("build/natives").matching {
+        include "**/*tracy-capture*"
+        include "**/*tracy-profiler*"
+    }
+    additionalFiles.from file("Tracy_LICENSE")
+    changelog = ""
+    type = STABLE
+
+    dryRun = providers.environmentVariable("GITHUB_TOKEN").getOrNull() == null
+
+    github {
+        accessToken = providers.environmentVariable("GITHUB_TOKEN")
+        repository = providers.environmentVariable("GITHUB_REPOSITORY").getOrElse("modmuss50/dryrun")
+        commitish = providers.environmentVariable("GITHUB_REF_NAME").getOrElse("dryrun")
+    }
+}
+
+tasks.publishMods.dependsOn collectNatives
