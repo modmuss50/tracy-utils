@@ -4,7 +4,7 @@ plugins {
     id "me.modmuss50.mod-publish-plugin" version "0.8.3"
 }
 
-version = "0.0.1"
+version = "0.0.2"
 
 base {
     archivesName = "tracy-utils"
@@ -43,6 +43,10 @@ tasks.register("extractTracy", Sync) {
         // MUSL linux fix
         def TracyFileRead = new File(outputDir, "server/TracyFileRead.hpp")
         TracyFileRead.text = TracyFileRead.text.replace("defined __FreeBSD__", "defined __FreeBSD__ || defined __linux__")
+
+        // Fix/workaround for https://github.com/wolfpld/tracy/issues/943
+        def TracyWorker = new File(outputDir, "server/TracyWorker.cpp")
+        TracyWorker.text = TracyWorker.text.replace("!m_sourceCodeQuery.empty() ||", "")
     }
 }
 
