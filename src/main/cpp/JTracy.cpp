@@ -152,3 +152,8 @@ extern "C" JNIEXPORT void JNICALL Java_com_mojang_jtracy_TracyBindings_messageCo
   TracyCMessageC(chars, length, static_cast<uint32_t>(color));
   env->ReleaseStringUTFChars(text, chars);
 }
+
+extern "C" JNIEXPORT jboolean JNICALL Java_me_modmuss50_tracyutils_TracyBindingsExtension_isConnected(
+    JNIEnv *, jclass) {
+  return static_cast<jboolean>(TracyCIsConnected != 0);
+}

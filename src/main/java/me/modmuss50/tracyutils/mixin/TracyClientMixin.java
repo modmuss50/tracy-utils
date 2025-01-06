@@ -1,8 +1,10 @@
 package me.modmuss50.tracyutils.mixin;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.jtracy.TracyClient;
+import me.modmuss50.tracyutils.TracyClientExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
@@ -19,6 +21,12 @@ public class TracyClientMixin {
 
     @Unique
     private static boolean loadedNatives = false;
+
+    @ModifyExpressionValue(method = "beginZone*", at = @At(value = "FIELD", target = "Lcom/mojang/jtracy/TracyClient;loaded:Z"))
+    private static boolean beginZone(boolean original){
+        // don't begin Zone if not connected to server, to prevent ending zones that were started before connection
+        return (original && TracyClientExtension.isConnected());
+    }
 
     @WrapOperation(method = "load", at = @At(value = "INVOKE", target = "Lcom/mojang/jtracy/Loader;load()V"))
     private static void load(@Coerce Object instance, Operation<Void> original) {

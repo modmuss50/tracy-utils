@@ -5,7 +5,7 @@ const tracy = "build/tracy/tracy-0.11.1/";
 fn buildJtracy(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) void {
     const lib = b.addSharedLibrary(.{ .name = "jtracy", .target = target, .optimize = optimize });
 
-    const base_args = &[_][]const u8{ "--std=c++20", "-DTRACY_ENABLE", "-DTRACY_NO_CRASH_HANDLER" };
+    const base_args = &[_][]const u8{ "--std=c++20", "-DTRACY_ENABLE", "-DTRACY_NO_CRASH_HANDLER", "-DTRACY_ON_DEMAND" };
     const args = if (target.result.os.tag == .windows)
         base_args ++ &[_][]const u8{
             "-DJNIEXPORT=__declspec(dllexport)",
