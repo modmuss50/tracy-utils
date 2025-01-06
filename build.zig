@@ -5,7 +5,7 @@ const tracy = "build/tracy/tracy-0.11.1/";
 fn buildJtracy(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) void {
     const lib = b.addSharedLibrary(.{ .name = "jtracy", .target = target, .optimize = optimize });
 
-    const base_args = &[_][]const u8{ "--std=c++20", "-DTRACY_ENABLE" };
+    const base_args = &[_][]const u8{ "--std=c++20", "-DTRACY_ENABLE", "-DTRACY_NO_CRASH_HANDLER" };
     const args = if (target.result.os.tag == .windows)
         base_args ++ &[_][]const u8{
             "-DJNIEXPORT=__declspec(dllexport)",
@@ -16,6 +16,7 @@ fn buildJtracy(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
     const env = std.process.getEnvMap(b.allocator) catch unreachable;
     const java_home = env.get("JAVA_HOME") orelse unreachable;
     const java_include_path = std.fmt.allocPrint(b.allocator, "{s}/include", .{java_home}) catch unreachable;
+    const java_linux_include_path = std.fmt.allocPrint(b.allocator, "{s}/include/linux", .{java_home}) catch unreachable;
     const java_darwin_include_path = std.fmt.allocPrint(b.allocator, "{s}/include/darwin", .{java_home}) catch unreachable;
 
     lib.addCSourceFiles(.{
@@ -24,6 +25,7 @@ fn buildJtracy(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
     });
     lib.addIncludePath(b.path(tracy ++ "public"));
     lib.addSystemIncludePath(.{ .cwd_relative = java_include_path });
+    lib.addSystemIncludePath(.{ .cwd_relative = java_linux_include_path });
     lib.addSystemIncludePath(.{ .cwd_relative = java_darwin_include_path });
 
     lib.linkLibC();
