@@ -76,17 +76,21 @@ tasks.register("extractGLFW", Sync) {
 
 def targets = [
     // Linux
-    "aarch64-linux-musl",
-    "x86_64-linux-musl",
-    "riscv64-linux-musl",
+    "aarch64-linux-gnu",
+    "x86_64-linux-gnu",
     // Windows
     "x86_64-windows-gnu",
     "aarch64-windows-gnu",
     "x86-windows-gnu",
-    // MacOS
-    "x86_64-macos",
-    "aarch64-macos"
 ]
+
+if (System.properties['os.name'].toLowerCase().contains('mac')) {
+    targets += [
+        // MacOS
+        "x86_64-macos",
+        "aarch64-macos"
+    ]
+}
 
 def buildAll = tasks.register("buildAll")
 
@@ -104,7 +108,7 @@ targets.forEach { target ->
 
         workingDir projectDir
         def buildTarget = target == "aarch64-macos" ? "native" : target
-        commandLine "/opt/homebrew/bin/zig", "build", "-Doptimize=ReleaseSmall", "-Dtarget=${buildTarget}", "--prefix", outputDir
+        commandLine "zig", "build", "-Doptimize=ReleaseSmall", "-Dtarget=${buildTarget}", "--prefix", outputDir
     }
     buildAll.configure {
         dependsOn buildTask

@@ -3,6 +3,7 @@ package me.modmuss50.tracyutils.client;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import me.modmuss50.tracyutils.NativeLocator;
+import me.modmuss50.tracyutils.TracyClientExtension;
 import me.modmuss50.tracyutils.mixin.TracyClientAccessor;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
@@ -24,6 +25,7 @@ public class TracyUtilsClient implements ClientModInitializer {
                 ClientCommandManager.literal("tracyclient")
                         .then(ClientCommandManager.literal("start").executes(TracyUtilsClient::executeStart))
                         .then(ClientCommandManager.literal("stop").executes(TracyUtilsClient::executeStop))
+                        .then(ClientCommandManager.literal("isConnected").executes(TracyUtilsClient::isConnected))
         ));
     }
 
@@ -58,6 +60,18 @@ public class TracyUtilsClient implements ClientModInitializer {
 
         return 0;
     }
+
+    private static int isConnected(CommandContext<FabricClientCommandSource> ctx) throws CommandSyntaxException {
+        if (!TracyClientAccessor.isLoaded()) {
+            ctx.getSource().sendError(Text.literal("Tracy is not running"));
+            return 1;
+        }
+
+        ctx.getSource().sendFeedback(Text.literal("Tracy server connected: " + TracyClientExtension.isConnected()));
+
+        return 0;
+    }
+
 
     private static boolean runProfilerUI() throws IOException {
         Optional<Path> executable = NativeLocator.getTracyProfiler();
